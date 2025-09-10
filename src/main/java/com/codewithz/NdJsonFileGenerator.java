@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
+import java.util.UUID;
 
 public class NdJsonFileGenerator {
 
@@ -20,8 +21,8 @@ public class NdJsonFileGenerator {
     private static final Random RANDOM = new Random();
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter FILE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
-    // ? Multiple Operators
     private static final String[] OPERATORS = {"Etisalat", "Orange", "Vodacom", "Airtel"};
 
     public static void main(String[] args) throws InterruptedException {
@@ -31,10 +32,14 @@ public class NdJsonFileGenerator {
         }
 
         int batch = 1;
-        while (batch<=5) {
+        while (batch <= 5) {
             System.out.println("Generating batch " + batch + " ...");
             for (int i = 0; i < FILES_PER_BATCH; i++) {
-                String filename = "records_batch" + batch + "_file" + (i + 1) + ".ndjson";
+                // ? Generate unique filename with timestamp + UUID
+                String timestamp = LocalDateTime.now().format(FILE_FORMATTER);
+                String uniqueId = UUID.randomUUID().toString();
+                String filename = "records_batch" + batch + "_file" + (i + 1) + "_" + timestamp + "_" + uniqueId + ".ndjson";
+
                 File file = new File(dir, filename);
 
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
@@ -76,8 +81,6 @@ public class NdJsonFileGenerator {
         data.put("Originating MSC ID", "MSC-ID-" + RANDOM.nextInt(100));
         data.put("Filename", filename);
         data.put("Parsed Time", LocalDateTime.now().format(FORMATTER));
-
-        // ? Random operator from the list
         data.put("Operator", OPERATORS[RANDOM.nextInt(OPERATORS.length)]);
 
         data.put("IMSI", "42001" + RANDOM.nextInt(999999999));
@@ -99,4 +102,3 @@ public class NdJsonFileGenerator {
         return data;
     }
 }
-
