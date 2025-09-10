@@ -15,7 +15,7 @@ import java.util.UUID;
 public class NdJsonFileGenerator {
 
     private static final String OUTPUT_DIR = "C:\\Data-Point";
-    private static final int RECORDS_PER_FILE = 100;
+    private static final int RECORDS_PER_FILE = 10000;
     private static final int FILES_PER_BATCH = 5;
     private static final int INTERVAL_MS = 10000; // 10 seconds
     private static final Random RANDOM = new Random();
@@ -32,7 +32,7 @@ public class NdJsonFileGenerator {
         }
 
         int batch = 1;
-        while (batch <= 5) {
+        while (batch <= 15) {
             System.out.println("Generating batch " + batch + " ...");
             for (int i = 0; i < FILES_PER_BATCH; i++) {
                 // ? Generate unique filename with timestamp + UUID
