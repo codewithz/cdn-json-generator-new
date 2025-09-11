@@ -32,7 +32,7 @@ public class NdJsonFileGenerator {
         }
 
         int batch = 1;
-        while (batch <= 15) {
+        while (batch <= 60) {
             System.out.println("Generating batch " + batch + " ...");
             for (int i = 0; i < FILES_PER_BATCH; i++) {
                 // ? Generate unique filename with timestamp + UUID
@@ -55,7 +55,7 @@ public class NdJsonFileGenerator {
             }
 
             batch++;
-            Thread.sleep(INTERVAL_MS);
+            //Thread.sleep(INTERVAL_MS);
         }
     }
 

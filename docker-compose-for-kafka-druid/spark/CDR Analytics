@@ -1,0 +1,134 @@
+Dependency
+
+  <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.15.2</version> <!-- or latest -->
+        </dependency>
+
+        <!-- Jackson Databind (used in Spark's JSON handling) -->
+        <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.15.2</version>
+        </dependency>
+
+
+----------- Java code ---
+
+package com.cwz.analytics;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+import java.util.Scanner;
+
+import static org.apache.spark.sql.functions.*;
+
+public class CDRAnalyticsJob {
+    public static void main(String[] args) {
+
+        SparkSession spark = SparkSession.builder()
+                .appName("CDR Analytics - Local FS")
+                .master("local[*]")   // use all cores locally
+                .getOrCreate();
+
+        // =============================
+        // Spark Configs for Performance
+        // =============================
+        spark.conf().set("spark.sql.shuffle.partitions", "8"); // tune based on cores
+        spark.conf().set("spark.sql.files.maxPartitionBytes", "64m");
+        spark.conf().set("spark.sql.files.openCostInBytes", "1m");
+        spark.conf().set("spark.sql.autoBroadcastJoinThreshold", -1);
+
+        // Path to your NDJSON CDR dataset (local directory)
+        String inputPath = "C:\\Spark\\cdr-data\\*.ndjson";
+
+        // Load NDJSON files (line-delimited JSON)
+        Dataset<Row> cdrDF = spark.read()
+                .format("json")
+                .option("multiLine", false)
+                .load(inputPath)
+                // Select only needed columns to reduce shuffle/memory
+                .select("Operator", "Call Duration", "Call Type", "MSC Address", "Charged Party");
+
+        System.out.println("Total Records: " + cdrDF.count());
+        cdrDF.printSchema();
+
+        // Cache since reused in multiple aggregations
+        cdrDF.cache();
+
+        // =============================
+        // 1. Count of calls per Operator
+        // =============================
+        Dataset<Row> callsPerOperator = cdrDF.groupBy("Operator")
+                .count()
+                .orderBy(col("count").desc());
+
+        callsPerOperator.show(false);
+
+        // =============================
+        // 2. Total & Average Call Duration per Operator
+        // =============================
+        Dataset<Row> durationPerOperator = cdrDF.groupBy("Operator")
+                .agg(
+                        sum("Call Duration").alias("TotalDuration"),
+                        avg("Call Duration").alias("AvgDuration")
+                )
+                .orderBy(col("TotalDuration").desc());
+
+        durationPerOperator.show(false);
+
+        // =============================
+        // 3. Calls per Call Type
+        // =============================
+        Dataset<Row> callsPerType = cdrDF.groupBy("Call Type")
+                .count()
+                .orderBy(col("count").desc());
+
+        callsPerType.show(false);
+
+        // =============================
+        // 4. Calls per MSC
+        // =============================
+        Dataset<Row> callsPerMSC = cdrDF.groupBy("MSC Address")
+                .count()
+                .orderBy(col("count").desc());
+
+        callsPerMSC.show(false);
+
+        // =============================
+        // 5. Calls per Charged Party
+        // =============================
+        Dataset<Row> callsPerParty = cdrDF.groupBy("Charged Party")
+                .count()
+                .orderBy(col("count").desc());
+
+        callsPerParty.show(false);
+
+        // =============================
+        // 6. Top 10 longest calls
+        // =============================
+        Dataset<Row> longestCalls = cdrDF.orderBy(col("Call Duration").desc()).limit(10);
+
+        longestCalls.show(false);
+
+        // =============================
+        // Save Results (Parquet for speed, CSV if you prefer readability)
+        // =============================
+        String outputBasePath = "C:\\Spark\\cdr-output\\";
+
+        callsPerOperator.write().mode("overwrite").parquet(outputBasePath + "callsPerOperator");
+        durationPerOperator.write().mode("overwrite").parquet(outputBasePath + "durationPerOperator");
+        callsPerType.write().mode("overwrite").parquet(outputBasePath + "callsPerType");
+        callsPerMSC.write().mode("overwrite").parquet(outputBasePath + "callsPerMSC");
+        callsPerParty.write().mode("overwrite").parquet(outputBasePath + "callsPerParty");
+        longestCalls.write().mode("overwrite").parquet(outputBasePath + "longestCalls");
+
+
+        try (final var scanner = new Scanner(System.in)) {
+            scanner.nextLine();
+        }
+    }
+}
